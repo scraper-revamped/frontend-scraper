@@ -6,6 +6,12 @@ from send_email import send_email
 from dotenv import load_dotenv
 from datetime import datetime
 from fuzzywuzzy import fuzz
+
+# from sentence_transformers import SentenceTransformer
+# from sklearn.metrics.pairwise import cosine_similarity
+
+
+# model = SentenceTransformer('intfloat/e5-small-v2')
 # Load environment variables
 load_dotenv()
 
@@ -96,6 +102,7 @@ def process_request(email, keywords, username):
 
     for keyword in keywords:
         blobs = bucket.list_blobs()
+        # keyword_embedding = model.encode(keyword.lower(),normalize_embeddings= True)
 
         for blob in blobs:
             if blob.name.endswith(".xlsx"):
@@ -105,8 +112,14 @@ def process_request(email, keywords, username):
                     matches = df[df["subject"].apply(
                         lambda x: fuzz.partial_ratio(keyword.lower(), str(x).lower()) >= threshold
                     )]
+                    # subject_embeddings = model.encode(df["subject"].astype(str).str.lower().tolist(),normalize_embeddings=True)
+
+                    # similarities = cosine_similarity(keyword_embedding.reshape(1, -1), subject_embeddings)[0]
+
+                    # matches = df[similarities >= threshold]
                     if not matches.empty:
                         matches.insert(0, "keyword", keyword)
+                        #matches['score'] = similarities[similarities >= threshold]
                         all_matching_rows.append(matches)
                 os.remove("temp.xlsx")
 
