@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from fuzzywuzzy import fuzz
 from io import BytesIO
+import json
 
 
 # from sentence_transformers import SentenceTransformer
@@ -20,18 +21,23 @@ load_dotenv()
 today_date = datetime.today().strftime('%Y-%m-%d')
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "supersecret")
-
+USERS_STR = os.getenv('USER_DATA')
+if USERS_STR:
+    USERS = json.loads(USERS_STR)
+    print(USERS)
+else:
+    print("USER_DATA not found in the environment variables.")
 # Simulated user data for authentication
-USER_DATA = {
-    "omar": {"password": "123"}
-}
+# USER_DATA = {
+#     "omar": {"password": "123"}
+# }
 
 # Google Cloud Storage configuration
 BUCKET_NAME = "tenders-excel-files"
 
 # Helper function to check credentials
 def check_credentials(username, password):
-    return username in USER_DATA and USER_DATA[username]["password"] == password
+    return username in USERS and USERS[username]["password"] == password
 
 # Route: Login Page
 @app.route("/", methods=["GET", "POST"])
@@ -153,7 +159,7 @@ def process_request(email, keywords, username):
             body=f"No results were found for your query for {txt}.",
             attachments=None
         )
-        
+
 # not working for big## keywords
 # def process_request(email, keywords, username):
 #     storage_client = storage.Client()
