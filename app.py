@@ -6,6 +6,8 @@ from send_email import send_email
 from dotenv import load_dotenv
 from datetime import datetime
 from fuzzywuzzy import fuzz
+from io import BytesIO
+
 
 # from sentence_transformers import SentenceTransformer
 # from sklearn.metrics.pairwise import cosine_similarity
@@ -92,48 +94,46 @@ def search_input():
         return redirect(url_for("search_input"))
 
     return render_template("search.html")
-
 def process_request(email, keywords, username):
     storage_client = storage.Client()
     bucket = storage_client.bucket(BUCKET_NAME)
 
     all_matching_rows = []
-    threshold=80
+    threshold = 80
 
+    # Step 1: Download all the blobs (Excel files) once and process them
+    blobs = list(bucket.list_blobs())
+    all_files_data = {}
+
+    # Download each file once and read into memory
+    for blob in blobs:
+        if blob.name.endswith(".xlsx"):
+            print(f"Downloading {blob.name}...")
+            blob_content = blob.download_as_string()  # Download file as string (no need to save it locally)
+            df = pd.read_excel(BytesIO(blob_content))  # Read the content directly into a DataFrame
+            all_files_data[blob.name] = df  # Store the DataFrame for later use
+
+    # Step 2: For each keyword, perform fuzzy matching against all files
     for keyword in keywords:
-        blobs = bucket.list_blobs()
-        # keyword_embedding = model.encode(keyword.lower(),normalize_embeddings= True)
+        for file_name, df in all_files_data.items():
+            if "subject" in df.columns:
+                matches = df[df["subject"].apply(
+                    lambda x: fuzz.partial_ratio(keyword.lower(), str(x).lower()) >= threshold
+                )]
+                if not matches.empty:
+                    matches.insert(0, "keyword", keyword)
+                    all_matching_rows.append(matches)
 
-        for blob in blobs:
-            if blob.name.endswith(".xlsx"):
-                blob.download_to_filename("temp.xlsx")
-                df = pd.read_excel("temp.xlsx")
-                if "subject" in df.columns:
-                    matches = df[df["subject"].apply(
-                        lambda x: fuzz.partial_ratio(keyword.lower(), str(x).lower()) >= threshold
-                    )]
-                    # subject_embeddings = model.encode(df["subject"].astype(str).str.lower().tolist(),normalize_embeddings=True)
-
-                    # similarities = cosine_similarity(keyword_embedding.reshape(1, -1), subject_embeddings)[0]
-
-                    # matches = df[similarities >= threshold]
-                    if not matches.empty:
-                        matches.insert(0, "keyword", keyword)
-                        #matches['score'] = similarities[similarities >= threshold]
-                        all_matching_rows.append(matches)
-                os.remove("temp.xlsx")
-
+    # Step 3: Save and send email with the combined result
     if all_matching_rows:
-        # Combine all matching rows into a single DataFrame
         combined_df = pd.concat(all_matching_rows, ignore_index=True)
         result_file = f"tenders_combined_{today_date}_filtered_{username}.xlsx"
 
-        # Save the combined DataFrame to a single file
         print(f"Saving combined file: {result_file}")
         with pd.ExcelWriter(result_file, engine='xlsxwriter') as writer:
             combined_df.to_excel(writer, index=False)
-        # Send a single email with the combined file
-        if combined_df.shape[0]>0:
+
+        if combined_df.shape[0] > 0:
             send_email(
                 to_addresses=[email],
                 subject=f"Search Results for Keywords on {today_date}",
@@ -141,21 +141,83 @@ def process_request(email, keywords, username):
                 attachments=[result_file]
             )
 
-        # Clean up the local file after sending the email
-            if os.path.exists(result_file):
-                print(f"Deleting file: {result_file}")
-                os.remove(result_file)
+        if os.path.exists(result_file):
+            print(f"Deleting file: {result_file}")
+            os.remove(result_file)
     else:
         # If no matches are found for any keyword
-        txt=""
-        for val in keywords:
-            txt+=f"'{val},'"
+        txt = ", ".join([f"'{val}'" for val in keywords])
         send_email(
-                to_addresses=[email],
-                subject=f"No Matches Found on {today_date}",
-                body=f"No results were found for your query for {txt}.",
-                attachments=None
-            )
+            to_addresses=[email],
+            subject=f"No Matches Found on {today_date}",
+            body=f"No results were found for your query for {txt}.",
+            attachments=None
+        )
+        
+# not working for big## keywords
+# def process_request(email, keywords, username):
+#     storage_client = storage.Client()
+#     bucket = storage_client.bucket(BUCKET_NAME)
+
+#     all_matching_rows = []
+#     threshold=80
+
+#     for keyword in keywords:
+#         blobs = bucket.list_blobs()
+#         # keyword_embedding = model.encode(keyword.lower(),normalize_embeddings= True)
+
+#         for blob in blobs:
+#             if blob.name.endswith(".xlsx"):
+#                 blob.download_to_filename("temp.xlsx")
+#                 df = pd.read_excel("temp.xlsx")
+#                 if "subject" in df.columns:
+#                     matches = df[df["subject"].apply(
+#                         lambda x: fuzz.partial_ratio(keyword.lower(), str(x).lower()) >= threshold
+#                     )]
+#                     # subject_embeddings = model.encode(df["subject"].astype(str).str.lower().tolist(),normalize_embeddings=True)
+
+#                     # similarities = cosine_similarity(keyword_embedding.reshape(1, -1), subject_embeddings)[0]
+
+#                     # matches = df[similarities >= threshold]
+#                     if not matches.empty:
+#                         matches.insert(0, "keyword", keyword)
+#                         #matches['score'] = similarities[similarities >= threshold]
+#                         all_matching_rows.append(matches)
+#                 os.remove("temp.xlsx")
+
+#     if all_matching_rows:
+#         # Combine all matching rows into a single DataFrame
+#         combined_df = pd.concat(all_matching_rows, ignore_index=True)
+#         result_file = f"tenders_combined_{today_date}_filtered_{username}.xlsx"
+
+#         # Save the combined DataFrame to a single file
+#         print(f"Saving combined file: {result_file}")
+#         with pd.ExcelWriter(result_file, engine='xlsxwriter') as writer:
+#             combined_df.to_excel(writer, index=False)
+#         # Send a single email with the combined file
+#         if combined_df.shape[0]>0:
+#             send_email(
+#                 to_addresses=[email],
+#                 subject=f"Search Results for Keywords on {today_date}",
+#                 body=f"Kindly find attached the extracted tender requests on {today_date} for the terms {keywords}.",
+#                 attachments=[result_file]
+#             )
+
+#         # Clean up the local file after sending the email
+#             if os.path.exists(result_file):
+#                 print(f"Deleting file: {result_file}")
+#                 os.remove(result_file)
+#     else:
+#         # If no matches are found for any keyword
+#         txt=""
+#         for val in keywords:
+#             txt+=f"'{val},'"
+#         send_email(
+#                 to_addresses=[email],
+#                 subject=f"No Matches Found on {today_date}",
+#                 body=f"No results were found for your query for {txt}.",
+#                 attachments=None
+#             )
 
 
 
