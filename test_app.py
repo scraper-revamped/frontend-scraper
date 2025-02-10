@@ -8,8 +8,7 @@ from datetime import datetime
 from fuzzywuzzy import fuzz
 from io import BytesIO
 import json
-import csv
-import io
+
 
 # from sentence_transformers import SentenceTransformer
 # from sklearn.metrics.pairwise import cosine_similarity
@@ -50,7 +49,7 @@ def login():
             flash("Invalid username or password.", "danger")
     return render_template("login.html")
 
-
+# Route: Search Input
 @app.route("/search", methods=["GET", "POST"])
 def search_input():
     if "username" not in session:
@@ -61,33 +60,13 @@ def search_input():
         email = request.form["email"]
         manual_keywords = request.form.get("manual_keywords", "").strip()
         uploaded_file = request.files.get("keywords_file")
-        daily_updates = request.form.get("daily_updates")  # New input field for daily updates
 
         # Check if neither manual keywords nor a file was provided
         if not manual_keywords and not uploaded_file:
             flash("You must enter a keyword or upload a file to proceed.", "danger")
             return redirect(url_for("search_input"))
 
-        # If the user selected daily updates
-        if daily_updates == "yes":
-            if not email or not uploaded_file:
-                flash("You must provide an email and upload a file for daily updates.", "danger")
-                return redirect(url_for("search_input"))
-
-            # Upload the file to Google Cloud Storage
-            storage_client = storage.Client()
-            bucket = storage_client.bucket(BUCKET_NAME)
-
-            # Save the file to the bucket
-            blob = bucket.blob(f"user_uploads/{session['username']}/{uploaded_file.filename}")
-            blob.upload_from_file(uploaded_file)
-
-            # Save the email and file location (in a separate data storage, like a CSV or database)
-            save_user_data(email, blob.name)
-
-            flash("You will now receive daily updates to your email.", "success")
-
-        # Combine keywords from manual input and file
+        # Extract keywords from uploaded file if provided
         file_keywords = []
         if uploaded_file:
             try:
@@ -106,123 +85,17 @@ def search_input():
                 flash("Error reading file. Please ensure it is a valid CSV or Excel file.", "danger")
                 return redirect(url_for("search_input"))
 
+        # Combine keywords from manual input and file
         manual_keywords_list = [kw.strip() for kw in manual_keywords.split(",") if kw.strip()]
         all_keywords = list(set(file_keywords + manual_keywords_list))
-
-        # Process the request as usual
         username = session["username"]
+
+        # Process the request
         process_request(email, all_keywords, username)
         flash("Search results have been sent to your email.", "success")
         return redirect(url_for("search_input"))
 
     return render_template("search.html")
-
-
-# Route: Search Input
-# @app.route("/search", methods=["GET", "POST"])
-# def search_input():
-#     if "username" not in session:
-#         flash("Please log in first.", "warning")
-#         return redirect(url_for("login"))
-
-#     if request.method == "POST":
-#         email = request.form["email"]
-#         manual_keywords = request.form.get("manual_keywords", "").strip()
-#         uploaded_file = request.files.get("keywords_file")
-
-#         # Check if neither manual keywords nor a file was provided
-#         if not manual_keywords and not uploaded_file:
-#             flash("You must enter a keyword or upload a file to proceed.", "danger")
-#             return redirect(url_for("search_input"))
-
-#         # Extract keywords from uploaded file if provided
-#         file_keywords = []
-#         if uploaded_file:
-#             try:
-#                 if uploaded_file.filename.endswith('.csv'):
-#                     df = pd.read_csv(uploaded_file)
-#                 elif uploaded_file.filename.endswith('.xlsx'):
-#                     df = pd.read_excel(uploaded_file)
-#                 else:
-#                     flash("Unsupported file format. Please upload a CSV or Excel file.", "danger")
-#                     return redirect(url_for("search_input"))
-#                 if 'keywords' not in df.columns:
-#                     flash("The uploaded file must contain a column named 'keywords'.", "danger")
-#                     return redirect(url_for("search_input"))
-#                 file_keywords = df['keywords'].dropna().tolist()
-#             except Exception as e:
-#                 flash("Error reading file. Please ensure it is a valid CSV or Excel file.", "danger")
-#                 return redirect(url_for("search_input"))
-
-#         # Combine keywords from manual input and file
-#         manual_keywords_list = [kw.strip() for kw in manual_keywords.split(",") if kw.strip()]
-#         all_keywords = list(set(file_keywords + manual_keywords_list))
-#         username = session["username"]
-
-#         # Process the request
-#         process_request(email, all_keywords, username)
-#         flash("Search results have been sent to your email.", "success")
-#         return redirect(url_for("search_input"))
-
-    # return render_template("search.html")
-
-from google.cloud import storage
-import io
-import pandas as pd
-
-def save_user_data(email, file_location):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket("tenders-excel-files")
-
-    # Path to the user data CSV file in the bucket
-    user_data_file_path = "user_info/user_data_info.csv"
-    blob = bucket.blob(user_data_file_path)
-
-    # Check if the file exists
-    if blob.exists():
-        # Read the existing CSV file without headers
-        existing_data = blob.download_as_string()
-        df = pd.read_csv(io.BytesIO(existing_data), header=None, names=['email', 'file_location'])
-    else:
-        # If the file doesn't exist, create a new DataFrame with headers
-        df = pd.DataFrame(columns=['email', 'file_location'])
-
-    # Append the new user data to the DataFrame
-    new_data = pd.DataFrame({'email': [email], 'file_location': [file_location]})
-    df = pd.concat([df, new_data], ignore_index=True)
-
-    # Upload the updated DataFrame back to Google Cloud Storage as CSV
-    with io.BytesIO() as output:
-        df.to_csv(output, index=False, header=not blob.exists())
-        output.seek(0)
-        blob.upload_from_file(output, content_type='text/csv')
-    
-    print(f"User data saved: {email}, {file_location}")
-
-
-
-
-# def save_user_data(email, file_location):
-#     storage_client = storage.Client()
-#     bucket = storage_client.bucket("tenders-excel-files")
-
-#     # Path to the user data CSV file in the bucket
-#     user_data_file_path = "user_info/user_data_info.csv"
-#     blob = bucket.blob(user_data_file_path)
-    
-#     # Check if the file already exists
-#     if not blob.exists():
-#         # If it doesn't exist, create a new file and write the header
-#         blob.upload_from_string('email,file_location\n')
-
-#     # Prepare the data to append (email and file location)
-#     user_data = f"{email},{file_location}\n"
-    
-#     # Append the user data to the file
-#     blob.upload_from_string(user_data, if_generation_match=blob.generation)
-#     print(f"User data saved: {email}, {file_location}")
-
-
 def process_request(email, keywords, username):
     storage_client = storage.Client()
     bucket = storage_client.bucket(BUCKET_NAME)
