@@ -12,7 +12,7 @@ today_date = datetime.today().strftime('%Y-%m-%d')
 def send_email(to_addresses, subject, body, attachments=None, username="user"):
     smtp_server = 'smtp.gmail.com'
     smtp_port = 587
-    email_address = "omarkamalabuassaf1@gmail.com"
+    email_address = "tariq.khasawneh@devoteam.com"
     email_password = os.getenv('EMAIL_PASSWORD')
     # Create the email
     msg = MIMEMultipart()
