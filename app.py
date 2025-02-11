@@ -175,7 +175,7 @@ import pandas as pd
 
 def save_user_data(email, file_location):
     storage_client = storage.Client()
-    bucket = storage_client.bucket("tenders-excel-files")
+    bucket = storage_client.bucket("scraping_revamped")
 
     # Path to the user data CSV file in the bucket
     user_data_file_path = "user_info/user_data_info.csv"
