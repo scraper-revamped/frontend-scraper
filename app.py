@@ -30,7 +30,7 @@ else:
     print("USER_DATA not found in the environment variables.")
 
 # Google Cloud Storage configuration
-BUCKET_NAME = "tenders-excel-files"
+BUCKET_NAME = "scraping_revamped"
 
 # Helper function to check credentials
 def check_credentials(username, password):
