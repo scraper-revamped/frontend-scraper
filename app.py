@@ -59,6 +59,9 @@ def search_input():
 
     if request.method == "POST":
         email = request.form["email"]
+        if not email.endswith("@devoteam.com"):
+            flash("Invalid email domain. Only emails ending with '@devoteam.com' are allowed.", "danger")
+            return redirect(url_for("search_input"))
         manual_keywords = request.form.get("manual_keywords", "").strip()
         uploaded_file = request.files.get("keywords_file")
         daily_updates = request.form.get("daily_updates")  # New input field for daily updates
