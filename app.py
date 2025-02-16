@@ -5,7 +5,7 @@ from google.cloud import storage
 from send_email import send_email
 from dotenv import load_dotenv
 from datetime import datetime
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 from io import BytesIO
 import json
 import csv
@@ -231,7 +231,7 @@ def process_request(email, keywords, username):
     bucket = storage_client.bucket(BUCKET_NAME)
 
     all_matching_rows = []
-    threshold = 80
+    threshold = 70
 
     # Step 1: Download all the blobs (Excel files) once and process them
     blobs = list(bucket.list_blobs())
@@ -260,6 +260,7 @@ def process_request(email, keywords, username):
     if all_matching_rows:
         combined_df = pd.concat(all_matching_rows, ignore_index=True)
         result_file = f"tenders_combined_{today_date}_filtered_{username}.xlsx"
+        combined_df.drop_duplicates(subset='link', keep='first', inplace=True)  
 
         print(f"Saving combined file: {result_file}")
         with pd.ExcelWriter(result_file, engine='xlsxwriter') as writer:

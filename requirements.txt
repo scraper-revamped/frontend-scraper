@@ -7,6 +7,7 @@ xlsxwriter
 # sentence-transformers
 # scikit-learn
 fuzzywuzzy
+rapidfuzz
 python-dotenv
 gunicorn
 
