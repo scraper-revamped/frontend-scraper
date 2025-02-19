@@ -120,59 +120,6 @@ def search_input():
 
     return render_template("search.html")
 
-
-# Route: Search Input
-# @app.route("/search", methods=["GET", "POST"])
-# def search_input():
-#     if "username" not in session:
-#         flash("Please log in first.", "warning")
-#         return redirect(url_for("login"))
-
-#     if request.method == "POST":
-#         email = request.form["email"]
-#         manual_keywords = request.form.get("manual_keywords", "").strip()
-#         uploaded_file = request.files.get("keywords_file")
-
-#         # Check if neither manual keywords nor a file was provided
-#         if not manual_keywords and not uploaded_file:
-#             flash("You must enter a keyword or upload a file to proceed.", "danger")
-#             return redirect(url_for("search_input"))
-
-#         # Extract keywords from uploaded file if provided
-#         file_keywords = []
-#         if uploaded_file:
-#             try:
-#                 if uploaded_file.filename.endswith('.csv'):
-#                     df = pd.read_csv(uploaded_file)
-#                 elif uploaded_file.filename.endswith('.xlsx'):
-#                     df = pd.read_excel(uploaded_file)
-#                 else:
-#                     flash("Unsupported file format. Please upload a CSV or Excel file.", "danger")
-#                     return redirect(url_for("search_input"))
-#                 if 'keywords' not in df.columns:
-#                     flash("The uploaded file must contain a column named 'keywords'.", "danger")
-#                     return redirect(url_for("search_input"))
-#                 file_keywords = df['keywords'].dropna().tolist()
-#             except Exception as e:
-#                 flash("Error reading file. Please ensure it is a valid CSV or Excel file.", "danger")
-#                 return redirect(url_for("search_input"))
-
-#         # Combine keywords from manual input and file
-#         manual_keywords_list = [kw.strip() for kw in manual_keywords.split(",") if kw.strip()]
-#         all_keywords = list(set(file_keywords + manual_keywords_list))
-#         username = session["username"]
-
-#         # Process the request
-#         process_request(email, all_keywords, username)
-#         flash("Search results have been sent to your email.", "success")
-#         return redirect(url_for("search_input"))
-
-    # return render_template("search.html")
-
-from google.cloud import storage
-import io
-import pandas as pd
-
 def save_user_data(email, file_location):
     storage_client = storage.Client()
     bucket = storage_client.bucket("scraping_revamped")
@@ -202,36 +149,12 @@ def save_user_data(email, file_location):
     
     print(f"User data saved: {email}, {file_location}")
 
-
-
-
-# def save_user_data(email, file_location):
-#     storage_client = storage.Client()
-#     bucket = storage_client.bucket("tenders-excel-files")
-
-#     # Path to the user data CSV file in the bucket
-#     user_data_file_path = "user_info/user_data_info.csv"
-#     blob = bucket.blob(user_data_file_path)
-    
-#     # Check if the file already exists
-#     if not blob.exists():
-#         # If it doesn't exist, create a new file and write the header
-#         blob.upload_from_string('email,file_location\n')
-
-#     # Prepare the data to append (email and file location)
-#     user_data = f"{email},{file_location}\n"
-    
-#     # Append the user data to the file
-#     blob.upload_from_string(user_data, if_generation_match=blob.generation)
-#     print(f"User data saved: {email}, {file_location}")
-
-
 def process_request(email, keywords, username):
     storage_client = storage.Client()
     bucket = storage_client.bucket(BUCKET_NAME)
 
     all_matching_rows = []
-    threshold = 70
+    threshold = 90
 
     # Step 1: Download all the blobs (Excel files) once and process them
     blobs = list(bucket.list_blobs())
@@ -249,7 +172,7 @@ def process_request(email, keywords, username):
     for keyword in keywords:
         for file_name, df in all_files_data.items():
             if "subject" in df.columns:
-                matches = df[df["subject"].apply(
+                matches = df[df["subject_purpose"].apply(
                     lambda x: fuzz.partial_ratio(keyword.lower(), str(x).lower()) >= threshold
                 )]
                 if not matches.empty:
@@ -261,7 +184,7 @@ def process_request(email, keywords, username):
         combined_df = pd.concat(all_matching_rows, ignore_index=True)
         result_file = f"tenders_combined_{today_date}_filtered_{username}.xlsx"
         combined_df.drop_duplicates(subset='link', keep='first', inplace=True)  
-
+        combined_df.drop(columns=['subject_purpose'],inplace=True)
         print(f"Saving combined file: {result_file}")
         with pd.ExcelWriter(result_file, engine='xlsxwriter') as writer:
             combined_df.to_excel(writer, index=False)
