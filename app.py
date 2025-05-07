@@ -157,7 +157,8 @@ def process_request(email, keywords, username):
     threshold = 90
 
     # Step 1: Download all the blobs (Excel files) once and process them
-    blobs = list(bucket.list_blobs())
+    folder_prefix = "الاتصالات_وتقنية_المعلومات/"
+    blobs = list(bucket.list_blobs(prefix=folder_prefix))
     all_files_data = {}
 
     # Download each file once and read into memory
