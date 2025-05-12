@@ -30,7 +30,7 @@ else:
     print("USER_DATA not found in the environment variables.")
 
 # Google Cloud Storage configuration
-BUCKET_NAME = "scraping_revamped"
+BUCKET_NAME = "scraping_revamped_2"
 
 # Helper function to check credentials
 def check_credentials(username, password):
@@ -122,7 +122,7 @@ def search_input():
 
 def save_user_data(email, file_location):
     storage_client = storage.Client()
-    bucket = storage_client.bucket("scraping_revamped")
+    bucket = storage_client.bucket("scraping_revamped_2")
 
     # Path to the user data CSV file in the bucket
     user_data_file_path = "user_info/user_data_info.csv"
