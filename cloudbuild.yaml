@@ -13,7 +13,7 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'flask-frontend'
+      - 'scraper-frontend'
       - '--image'
       - 'gcr.io/$PROJECT_ID/flask-frontend:$COMMIT_SHA'
       - '--region'
