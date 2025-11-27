@@ -30,12 +30,11 @@ steps:
 
       - '--timeout'
       - '17m'
-      
+
       # SECRETS (This pulls the value from Secret Manager)
       # Syntax: ENV_VAR_NAME=SECRET_NAME:VERSION
       - '--set-secrets'
-      - 'USER_DATA=USER_DATA_JSON:latest'
-      - 'EMAIL_PASSWORD=EMAIL_PASSWORD_KH:latest'
+      - 'USER_DATA=USER_DATA_JSON:latest,EMAIL_PASSWORD=EMAIL_PASSWORD_KH:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/flask-frontend:$COMMIT_SHA'
