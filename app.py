@@ -122,7 +122,7 @@ def search_input():
 
 def save_user_data(email, file_location):
     storage_client = storage.Client()
-    bucket = storage_client.bucket("scraping_revamped_3")
+    bucket = storage_client.bucket(BUCKET_NAME)
 
     # Path to the user data CSV file in the bucket
     user_data_file_path = "user_info/user_data_info.csv"
