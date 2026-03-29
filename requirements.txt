@@ -1,0 +1,16 @@
+Flask
+pandas
+numpy
+google-cloud-storage
+openpyxl
+xlsxwriter
+# sentence-transformers
+# scikit-learn
+fuzzywuzzy
+rapidfuzz
+python-dotenv
+gunicorn
+
+
+
+
